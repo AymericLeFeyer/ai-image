@@ -73,8 +73,8 @@ header .t{font-weight:600;flex:1}
 .opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .opts select{padding:6px 8px}
 .opts .sp{flex:1}
-.io-text{display:none}
-body.text .io-text{display:flex}body.text select.io-text{display:inline-block}body.text .io-image{display:none}
+.io-text{display:none!important}
+body.text .io-text{display:flex!important}body.text select.io-text{display:inline-block!important}body.text .io-image{display:none!important}
 .txt{white-space:pre-wrap;line-height:1.6;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px}
 .drop{outline:2px dashed var(--acc);outline-offset:-8px}
 /* dialogs */
@@ -129,8 +129,9 @@ body.text .io-text{display:flex}body.text select.io-text{display:inline-block}bo
         <select id="n" class="io-image" title="Nombre d'images"><option>1</option><option>2</option><option>3</option><option>4</option></select>
         <select id="format" class="io-image"><option>png</option><option>jpeg</option><option>webp</option></select>
         <select id="bg" class="io-image" title="Fond"><option value="auto">Fond auto</option><option value="transparent">Transparent</option><option value="opaque">Opaque</option></select>
+        <label class="io-image" style="display:flex;gap:5px;align-items:center;color:var(--mut)" title="Réutilise le contexte de la session : demandes précédentes + dernière image comme référence"><input type="checkbox" id="mem" checked>Mémoire de session</label>
         <select id="tmodel" class="io-text" title="Modèle texte"><option>gpt-5.1</option><option>gpt-5</option><option>gpt-5-mini</option><option>gpt-4.1</option></select>
-        <label class="io-text" style="display:flex;gap:5px;align-items:center;color:var(--mut)"><input type="checkbox" id="ctx" checked>Inclure les images de la session</label>
+        <label class="io-text" style="display:flex;gap:5px;align-items:center;color:var(--mut)"><input type="checkbox" id="ctx" checked>Inclure les images de la session (8 max)</label>
         <span class="sp"></span>
         <button class="primary" id="go">Générer</button>
       </div>
@@ -181,7 +182,7 @@ function renderFeed(keepScroll){
     return `<div class="item" data-item="${it.id}">
       ${it.prompt?`<div class="p">${esc(it.prompt)}</div>`:''}
       ${it.refs.length?`<div class="refs">${it.refs.map(r=>`<img src="${r}">`).join('')}</div>`:''}
-      <div class="meta"><span class="chip">${esc(p.model)}</span>${it.kind==='text'?`<span class="chip">texte</span>${it.tokens?`<span class="chip">${it.tokens} tokens</span>`:''}${p.ctx?`<span class="chip">${p.ctxN} img. de contexte</span>`:''}`:`<span class="chip">${p.size}</span><span class="chip">${p.quality}</span><span class="chip">×${p.n}</span>`}${it.cost?`<span class="chip">≈ ${money(it.cost)}</span>`:''}<span>${new Date(it.ts).toLocaleString('fr-FR')}</span></div>
+      <div class="meta"><span class="chip">${esc(p.model)}</span>${it.mem?`<span class="chip" title="Contexte de la session envoyé${it.autoRef?' + dernière image en référence':''}">🧠 mémoire${it.autoRef?' + dernière image':''}</span>`:''}${it.kind==='text'?`<span class="chip">texte</span>${it.tokens?`<span class="chip">${it.tokens} tokens</span>`:''}${it.hist?`<span class="chip">🧠 ${it.hist} échanges en mémoire</span>`:''}${p.ctx&&p.ctxN?`<span class="chip">${p.ctxN} img. de contexte</span>`:''}`:`<span class="chip">${p.size}</span><span class="chip">${p.quality}</span><span class="chip">×${p.n}</span>`}${it.cost?`<span class="chip">≈ ${money(it.cost)}</span>`:''}<span>${new Date(it.ts).toLocaleString('fr-FR')}</span></div>
       ${body}
       <div class="acts"><button data-reuse="${it.id}">↻ Reprendre le prompt</button><button data-rm="${it.id}">Supprimer</button></div>
     </div>`}).join('');
@@ -206,17 +207,26 @@ async function generate(){
   if(!prompt){alert('Ajoute un prompt pour décrire ce que tu veux faire des images.');return}
   if($('#out').value==='text')return generateText(prompt);
   const params={model:$('#model').value,size:$('#size').value,quality:$('#quality').value,n:+$('#n').value,format:$('#format').value,bg:$('#bg').value};
-  const item={id:uid(),prompt,params,refs:[...atts],images:[],status:'pending',ts:Date.now(),cost:0};
   const sess=cur;
+  const done=sess.items.filter(i=>i.status==='done');
+  const useMem=$('#mem').checked&&done.length>0;
+  let sendPrompt=prompt,sendRefs=[...atts],autoRef=false;
+  if(useMem){
+    const recap=done.slice(-12).map(i=>`- ${i.prompt}${i.kind==='text'?' (réponse texte)':''}`).join('\n');
+    sendPrompt=`Contexte de la session (demandes précédentes, de la plus ancienne à la plus récente) :\n${recap}\n\nNouvelle demande, à réaliser en tenant compte de ce contexte : ${prompt}`;
+    const lastImg=[...done].reverse().find(i=>i.kind!=='text'&&i.images.length);
+    if(!sendRefs.length&&lastImg){sendRefs=[lastImg.images[0]];autoRef=true}
+  }
+  const item={id:uid(),prompt,params,refs:[...atts],images:[],status:'pending',ts:Date.now(),cost:0,mem:useMem,autoRef};
   sess.items.push(item);$('#prompt').value='';atts=[];render();saveSess(sess);
   try{
     let res;
-    const common={model:params.model,prompt,size:params.size,quality:params.quality,n:params.n,output_format:params.format};
+    const common={model:params.model,prompt:sendPrompt,size:params.size,quality:params.quality,n:params.n,output_format:params.format};
     if(params.bg!=='auto'&&params.format!=='jpeg')common.background=params.bg;
-    if(item.refs.length){
+    if(sendRefs.length){
       const fd=new FormData();
       Object.entries(common).forEach(([k,v])=>fd.append(k,v));
-      for(let i=0;i<item.refs.length;i++){const b=await toBlob(item.refs[i]);fd.append('image[]',b,`ref${i}.${b.type.split('/')[1]||'png'}`)}
+      for(let i=0;i<sendRefs.length;i++){const b=await toBlob(sendRefs[i]);fd.append('image[]',b,`ref${i}.${b.type.split('/')[1]||'png'}`)}
       res=await fetch('/api/images/edits',{method:'POST',body:fd});
     }else{
       res=await fetch('/api/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(common)});
@@ -234,15 +244,27 @@ async function generate(){
 
 async function generateText(prompt){
   const sess=cur,model=$('#tmodel').value,useCtx=$('#ctx').checked;
-  // contexte : images générées dans la session (les plus récentes d'abord, max 8) + pièces jointes
-  const ctxImgs=useCtx?sess.items.filter(i=>i.kind!=='text'&&i.status==='done').flatMap(i=>i.images).slice(-8):[];
-  const prior=sess.items.filter(i=>i.kind==='text'&&i.status==='done').slice(-3).map(i=>`Demande précédente : ${i.prompt}\nRéponse : ${i.text}`).join('\n\n');
-  const item={id:uid(),kind:'text',prompt,params:{model,ctx:useCtx,ctxN:ctxImgs.length+atts.length},refs:[...atts],images:[],text:'',status:'pending',ts:Date.now()};
-  const imgs=[...ctxImgs,...atts];
+  // historique complet de la session, en messages ; seules les 8 images les plus récentes sont réellement envoyées
+  const done=sess.items.filter(i=>i.status==='done');
+  const srcs=done.flatMap(i=>[...i.refs,...(i.kind==='text'||!useCtx?[]:i.images)]);
+  const allowed=new Set(srcs.slice(-8));
+  const imgPart=u=>({type:'input_image',image_url:u});
+  const input=[];
+  for(const i of done){
+    const keep=u=>allowed.has(u);
+    input.push({role:'user',content:[{type:'input_text',text:i.prompt},...i.refs.filter(keep).map(imgPart)]});
+    if(i.kind==='text')input.push({role:'assistant',content:[{type:'output_text',text:i.text}]});
+    else{
+      input.push({role:'assistant',content:[{type:'output_text',text:`[J'ai généré ${i.images.length} image(s) pour cette demande.]`}]});
+      const gi=useCtx?i.images.filter(keep):[];
+      if(gi.length)input.push({role:'user',content:[{type:'input_text',text:"Voici les images que tu as générées pour la demande précédente :"},...gi.map(imgPart)]});
+    }
+  }
+  const item={id:uid(),kind:'text',prompt,params:{model,ctx:useCtx,ctxN:Math.min(8,srcs.length)+atts.length},refs:[...atts],images:[],text:'',status:'pending',ts:Date.now(),hist:done.length};
   sess.items.push(item);$('#prompt').value='';atts=[];render();saveSess(sess);
   try{
-    const content=[{type:'input_text',text:(prior?prior+'\n\n':'')+prompt},...imgs.map(u=>({type:'input_image',image_url:u}))];
-    const res=await fetch('/api/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,input:[{role:'user',content}]})});
+    input.push({role:'user',content:[{type:'input_text',text:prompt},...item.refs.map(imgPart)]});
+    const res=await fetch('/api/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,input})});
     const j=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(j.error?.message||('Erreur HTTP '+res.status));
     item.text=j.output_text||(j.output||[]).flatMap(o=>o.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n');
