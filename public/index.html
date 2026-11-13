@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Image Studio</title>
+<style>
+:root{--bg:#0f1115;--panel:#161922;--panel2:#1d212c;--line:#2a2f3d;--txt:#e8eaf0;--mut:#8b92a5;--acc:#7c8cff;--acc2:#5666e8;--err:#ff6b6b;--ok:#4ade80}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;display:grid;grid-template-columns:270px 1fr;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc2);border-color:var(--acc2);color:#fff;font-weight:600}
+button.primary:hover{background:var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+/* sidebar */
+aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+aside h1{font-size:15px;margin:0;padding:16px 16px 10px;display:flex;justify-content:space-between;align-items:center}
+.sessions{flex:1;overflow:auto;padding:4px 8px}
+.sess{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--mut)}
+.sess:hover{background:var(--panel2)}
+.sess.active{background:var(--panel2);color:var(--txt);box-shadow:inset 2px 0 var(--acc)}
+.sess span.n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess .x{opacity:0;border:0;background:none;padding:0 4px;color:var(--mut)}
+.sess:hover .x{opacity:1}
+.sess .x:hover{color:var(--err)}
+.bill{border-top:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.bill .row{display:flex;justify-content:space-between;color:var(--mut)}
+.bill .row b{color:var(--txt);font-weight:600}
+.bill a{display:block;text-align:center;text-decoration:none;color:#fff;background:var(--acc2);padding:9px;border-radius:8px;font-weight:600}
+.bill a:hover{background:var(--acc)}
+/* main */
+main{display:flex;flex-direction:column;min-height:0;min-width:0}
+header{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+header .t{font-weight:600;flex:1}
+.feed{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:22px}
+.empty{margin:auto;color:var(--mut);text-align:center;max-width:380px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;max-width:1000px;width:100%;align-self:center}
+.item .p{white-space:pre-wrap;margin-bottom:8px}
+.meta{color:var(--mut);font-size:12px;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.chip{background:var(--panel2);border-radius:20px;padding:2px 9px}
+.refs{display:flex;gap:6px;margin-bottom:10px}
+.refs img{height:52px;border-radius:6px;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.img{position:relative;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--line);background-image:conic-gradient(#222 25%,#2b2b2b 0 50%,#222 0 75%,#2b2b2b 0);background-size:16px 16px}
+.img img{display:block;width:100%;cursor:zoom-in}
+.img .bar{position:absolute;inset:auto 0 0 0;display:flex;gap:4px;padding:6px;background:linear-gradient(transparent,#000c);opacity:0;transition:.15s}
+.img:hover .bar{opacity:1}
+.img .bar button{flex:1;font-size:12px;padding:5px;background:#000a}
+.pending{display:flex;align-items:center;gap:10px;color:var(--mut)}
+.spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.error{color:var(--err);white-space:pre-wrap}
+.item .acts{margin-top:10px;display:flex;gap:6px}
+.item .acts button{font-size:12px;padding:4px 9px}
+/* composer */
+.composer{border-top:1px solid var(--line);background:var(--panel);padding:12px 20px 16px}
+.cin{max-width:1000px;margin:auto;display:flex;flex-direction:column;gap:8px}
+.cin textarea{width:100%;min-height:68px;max-height:220px;resize:vertical}
+.atts{display:flex;gap:8px;flex-wrap:wrap}
+.att{position:relative}
+.att img{height:56px;border-radius:6px;border:1px solid var(--line);display:block}
+.att button{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;padding:0;line-height:1;font-size:11px;background:var(--err);border:0;color:#fff}
+.opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.opts select{padding:6px 8px}
+.opts .sp{flex:1}
+.io-text{display:none}
+body.text .io-text{display:flex}body.text select.io-text{display:inline-block}body.text .io-image{display:none}
+.txt{white-space:pre-wrap;line-height:1.6;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px}
+.drop{outline:2px dashed var(--acc);outline-offset:-8px}
+/* dialogs */
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:10}
+.modal.on{display:flex}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;width:min(520px,92vw);display:flex;flex-direction:column;gap:10px}
+.box h2{margin:0 0 4px;font-size:16px}
+.box label{color:var(--mut);font-size:12px;margin-top:4px}
+.box small{color:var(--mut);font-size:12px}
+.box .end{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+#lb img{max-width:94vw;max-height:92vh;border-radius:8px}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Image Studio <button id="newSess" title="Nouvelle session">＋</button></h1>
+  <div class="sessions" id="sessions"></div>
+  <div class="bill">
+    <div class="row"><span>Dépensé (session)</span><b id="costSess">$0.00</b></div>
+    <div class="row"><span>Dépensé (total, local)</span><b id="costTotal">$0.00</b></div>
+    <div class="row"><span>Ce mois (API OpenAI)</span><b id="costMonth">—</b></div>
+    <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener">💳 Facturation OpenAI ↗</a>
+    
+  </div>
+</aside>
+
+<main>
+  <header>
+    <div class="t" id="sessTitle"></div>
+    <button id="renameSess">Renommer</button>
+    <button id="clearSess">Vider</button>
+  </header>
+  <div class="feed" id="feed"></div>
+  <div class="composer" id="composer">
+    <div class="cin">
+      <div class="atts" id="atts"></div>
+      <textarea id="prompt" placeholder="Décris l'image ou la demande de texte… (⌘/Ctrl+Entrée pour générer). Ajoute des images (bouton, glisser-déposer ou coller) pour les modifier ou t'en inspirer."></textarea>
+      <div class="opts">
+        <select id="out" title="Format de sortie"><option value="image">Sortie : Image</option><option value="text">Sortie : Texte</option></select>
+        <button id="attach">🖼 Ajouter des images</button>
+        <input type="file" id="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+        <select id="model" class="io-image" title="Modèle">
+          <option>gpt-image-1.5</option><option>gpt-image-1</option><option>gpt-image-1-mini</option>
+        </select>
+        <select id="size" class="io-image" title="Taille">
+          <option value="auto">Taille auto</option><option value="1024x1024">1024×1024</option>
+          <option value="1536x1024">1536×1024 (paysage)</option><option value="1024x1536">1024×1536 (portrait)</option>
+        </select>
+        <select id="quality" class="io-image" title="Qualité">
+          <option value="auto">Qualité auto</option><option value="low">Basse</option><option value="medium">Moyenne</option><option value="high">Haute</option>
+        </select>
+        <select id="n" class="io-image" title="Nombre d'images"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+        <select id="format" class="io-image"><option>png</option><option>jpeg</option><option>webp</option></select>
+        <select id="bg" class="io-image" title="Fond"><option value="auto">Fond auto</option><option value="transparent">Transparent</option><option value="opaque">Opaque</option></select>
+        <select id="tmodel" class="io-text" title="Modèle texte"><option>gpt-5.1</option><option>gpt-5</option><option>gpt-5-mini</option><option>gpt-4.1</option></select>
+        <label class="io-text" style="display:flex;gap:5px;align-items:center;color:var(--mut)"><input type="checkbox" id="ctx" checked>Inclure les images de la session</label>
+        <span class="sp"></span>
+        <button class="primary" id="go">Générer</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal" id="lb"><img id="lbImg"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+// $ par million de tokens : [texte in, image in, image out] — ESTIMATION, vérifie sur openai.com/api/pricing
+const PRICE={'gpt-image-1.5':[5,8,32],'gpt-image-1':[5,10,40],'gpt-image-1-mini':[2,2.5,8]};
+
+/* ---------- stockage ---------- */
+let srv={hasKey:true,hasAdmin:false};
+let db;
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('imgstudio',1);r.onupgradeneeded=()=>r.result.createObjectStore('sessions',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const tx=(mode,fn)=>new Promise((res,rej)=>{const t=db.transaction('sessions',mode);const out=fn(t.objectStore('sessions'));t.oncomplete=()=>res(out.result);t.onerror=()=>rej(t.error)});
+const saveSess=s=>tx('readwrite',st=>st.put(s));
+const delSess=id=>tx('readwrite',st=>st.delete(id));
+const allSess=()=>tx('readonly',st=>st.getAll());
+
+let sessions=[],cur=null,atts=[];
+const newSession=()=>({id:uid(),name:'Session '+(sessions.length+1),created:Date.now(),items:[]});
+
+/* ---------- rendu ---------- */
+const money=v=>'$'+v.toFixed(v<1?3:2);
+function renderSessions(){
+  $('#sessions').innerHTML=sessions.sort((a,b)=>b.created-a.created).map(s=>`<div class="sess ${s.id===cur.id?'active':''}" data-id="${s.id}"><span class="n">${esc(s.name)}</span><button class="x" data-del="${s.id}" title="Supprimer">✕</button></div>`).join('');
+  $('#sessTitle').textContent=cur.name;
+  const sc=sum(cur),tc=sessions.reduce((a,s)=>a+sum(s),0);
+  $('#costSess').textContent=money(sc);$('#costTotal').textContent=money(tc);
+}
+const sum=s=>s.items.reduce((a,i)=>a+(i.cost||0),0);
+function renderFeed(keepScroll){
+  const f=$('#feed'),top=f.scrollTop;
+  if(!cur.items.length){f.innerHTML='<div class="empty"><h2>Prêt à créer ✨</h2>Écris un prompt ci-dessous, avec ou sans images de référence. Chaque session garde son propre historique.</div>';return}
+  f.innerHTML=cur.items.map(it=>{
+    const p=it.params;
+    let body='';
+    if(it.status==='pending')body='<div class="pending"><div class="spin"></div>Génération en cours…</div>';
+    else if(it.status==='error')body=`<div class="error">${esc(it.error)}</div>`;
+    else if(it.kind==='text')body=`<div class="txt">${esc(it.text)}</div><div class="acts"><button data-copy="${it.id}">Copier</button></div>`;
+    else body=`<div class="grid">${it.images.map((src,i)=>`<div class="img"><img src="${src}" data-zoom="${it.id}:${i}"><div class="bar"><button data-dl="${it.id}:${i}">⬇ Télécharger</button><button data-ref="${it.id}:${i}">↪ Réutiliser</button></div></div>`).join('')}</div>`;
+    return `<div class="item" data-item="${it.id}">
+      ${it.prompt?`<div class="p">${esc(it.prompt)}</div>`:''}
+      ${it.refs.length?`<div class="refs">${it.refs.map(r=>`<img src="${r}">`).join('')}</div>`:''}
+      <div class="meta"><span class="chip">${esc(p.model)}</span>${it.kind==='text'?`<span class="chip">texte</span>${it.tokens?`<span class="chip">${it.tokens} tokens</span>`:''}${p.ctx?`<span class="chip">${p.ctxN} img. de contexte</span>`:''}`:`<span class="chip">${p.size}</span><span class="chip">${p.quality}</span><span class="chip">×${p.n}</span>`}${it.cost?`<span class="chip">≈ ${money(it.cost)}</span>`:''}<span>${new Date(it.ts).toLocaleString('fr-FR')}</span></div>
+      ${body}
+      <div class="acts"><button data-reuse="${it.id}">↻ Reprendre le prompt</button><button data-rm="${it.id}">Supprimer</button></div>
+    </div>`}).join('');
+  f.scrollTop=keepScroll?top:f.scrollHeight;
+}
+function renderAtts(){
+  $('#atts').innerHTML=atts.map((a,i)=>`<div class="att"><img src="${a}"><button data-rmatt="${i}">✕</button></div>`).join('');
+}
+const render=k=>{renderSessions();renderFeed(k);renderAtts()};
+
+/* ---------- images ---------- */
+const readFile=f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)});
+async function addFiles(files){for(const f of files){if(f.type.startsWith('image/'))atts.push(await readFile(f))}renderAtts()}
+const toBlob=async u=>(await fetch(u)).blob();
+function download(src,name){const a=document.createElement('a');a.href=src;a.download=name;a.click()}
+
+/* ---------- génération ---------- */
+async function generate(){
+  const prompt=$('#prompt').value.trim();
+  if(!prompt&&!atts.length)return;
+  if(!srv.hasKey){alert("OPENAI_API_KEY n'est pas définie sur le serveur : ajoute-la dans les variables d'environnement de la stack, puis redéploie.");return}
+  if(!prompt){alert('Ajoute un prompt pour décrire ce que tu veux faire des images.');return}
+  if($('#out').value==='text')return generateText(prompt);
+  const params={model:$('#model').value,size:$('#size').value,quality:$('#quality').value,n:+$('#n').value,format:$('#format').value,bg:$('#bg').value};
+  const item={id:uid(),prompt,params,refs:[...atts],images:[],status:'pending',ts:Date.now(),cost:0};
+  const sess=cur;
+  sess.items.push(item);$('#prompt').value='';atts=[];render();saveSess(sess);
+  try{
+    let res;
+    const common={model:params.model,prompt,size:params.size,quality:params.quality,n:params.n,output_format:params.format};
+    if(params.bg!=='auto'&&params.format!=='jpeg')common.background=params.bg;
+    if(item.refs.length){
+      const fd=new FormData();
+      Object.entries(common).forEach(([k,v])=>fd.append(k,v));
+      for(let i=0;i<item.refs.length;i++){const b=await toBlob(item.refs[i]);fd.append('image[]',b,`ref${i}.${b.type.split('/')[1]||'png'}`)}
+      res=await fetch('/api/images/edits',{method:'POST',body:fd});
+    }else{
+      res=await fetch('/api/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(common)});
+    }
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(j.error?.message||('Erreur HTTP '+res.status));
+    item.images=j.data.map(d=>`data:image/${params.format};base64,${d.b64_json}`);
+    const u=j.usage,pr=PRICE[params.model];
+    if(u&&pr){const d=u.input_tokens_details||{};item.cost=((d.text_tokens||0)*pr[0]+(d.image_tokens||0)*pr[1]+(u.output_tokens||0)*pr[2])/1e6}
+    item.status='done';
+  }catch(e){item.status='error';item.error=String(e.message||e)}
+  await saveSess(sess);
+  if(cur===sess)render(true);else renderSessions();
+}
+
+async function generateText(prompt){
+  const sess=cur,model=$('#tmodel').value,useCtx=$('#ctx').checked;
+  // contexte : images générées dans la session (les plus récentes d'abord, max 8) + pièces jointes
+  const ctxImgs=useCtx?sess.items.filter(i=>i.kind!=='text'&&i.status==='done').flatMap(i=>i.images).slice(-8):[];
+  const prior=sess.items.filter(i=>i.kind==='text'&&i.status==='done').slice(-3).map(i=>`Demande précédente : ${i.prompt}\nRéponse : ${i.text}`).join('\n\n');
+  const item={id:uid(),kind:'text',prompt,params:{model,ctx:useCtx,ctxN:ctxImgs.length+atts.length},refs:[...atts],images:[],text:'',status:'pending',ts:Date.now()};
+  const imgs=[...ctxImgs,...atts];
+  sess.items.push(item);$('#prompt').value='';atts=[];render();saveSess(sess);
+  try{
+    const content=[{type:'input_text',text:(prior?prior+'\n\n':'')+prompt},...imgs.map(u=>({type:'input_image',image_url:u}))];
+    const res=await fetch('/api/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,input:[{role:'user',content}]})});
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(j.error?.message||('Erreur HTTP '+res.status));
+    item.text=j.output_text||(j.output||[]).flatMap(o=>o.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n');
+    item.tokens=j.usage?.total_tokens||0;
+    if(!item.text)throw new Error('Réponse vide.');
+    item.status='done';
+  }catch(e){item.status='error';item.error=String(e.message||e)}
+  await saveSess(sess);
+  if(cur===sess)render(true);else renderSessions();
+}
+
+/* ---------- coûts du mois (clé admin) ---------- */
+async function loadMonth(){
+  try{
+    const j=await (await fetch('/api/costs')).json();
+    if(!j.available){$('#costMonth').textContent='— (OPENAI_ADMIN_KEY)';return}
+    if(j.error){$('#costMonth').textContent='erreur';$('#costMonth').title=j.error;return}
+    $('#costMonth').textContent=money(j.total);
+  }catch(e){$('#costMonth').textContent='erreur'}
+}
+
+/* ---------- événements ---------- */
+$('#go').onclick=generate;
+$('#prompt').addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')generate()});
+$('#attach').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+document.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])];if(fs.length){addFiles(fs)}});
+const comp=$('#composer');
+['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();comp.classList.add('drop')}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();comp.classList.remove('drop');if(ev==='drop')addFiles(e.dataTransfer.files)}));
+
+$('#newSess').onclick=async()=>{cur=newSession();sessions.push(cur);await saveSess(cur);render()};
+$('#renameSess').onclick=async()=>{const n=prompt('Nom de la session',cur.name);if(n){cur.name=n;await saveSess(cur);render(true)}};
+$('#clearSess').onclick=async()=>{if(confirm('Vider cette session ?')){cur.items=[];await saveSess(cur);render()}};
+$('#sessions').onclick=async e=>{
+  const d=e.target.dataset.del;
+  if(d){if(!confirm('Supprimer cette session et ses images ?'))return;await delSess(d);sessions=sessions.filter(s=>s.id!==d);if(!sessions.length)sessions.push(newSession());if(cur.id===d)cur=sessions[0];await saveSess(cur);render();return}
+  const s=e.target.closest('.sess');if(s){cur=sessions.find(x=>x.id===s.dataset.id);render()}
+};
+$('#feed').onclick=async e=>{
+  const t=e.target,find=k=>{const [id,i]=(t.dataset[k]||'').split(':');return [cur.items.find(x=>x.id===id),+i]};
+  if(t.dataset.zoom){const [it,i]=find('zoom');$('#lbImg').src=it.images[i];$('#lb').classList.add('on')}
+  else if(t.dataset.dl){const [it,i]=find('dl');download(it.images[i],`image-${it.id}-${i+1}.${it.params.format}`)}
+  else if(t.dataset.ref){const [it,i]=find('ref');atts.push(it.images[i]);renderAtts();$('#prompt').focus()}
+  else if(t.dataset.copy){const it=cur.items.find(x=>x.id===t.dataset.copy);navigator.clipboard.writeText(it.text);t.textContent='Copié ✓'}
+  else if(t.dataset.reuse){const it=cur.items.find(x=>x.id===t.dataset.reuse);$('#prompt').value=it.prompt;atts=[...it.refs];renderAtts();$('#prompt').focus()}
+  else if(t.dataset.rm){cur.items=cur.items.filter(x=>x.id!==t.dataset.rm);await saveSess(cur);render(true)}
+};
+$('#atts').onclick=e=>{if(e.target.dataset.rmatt!==undefined){atts.splice(+e.target.dataset.rmatt,1);renderAtts()}};
+$('#lb').onclick=()=>$('#lb').classList.remove('on');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').classList.remove('on')});
+
+const setOut=()=>document.body.classList.toggle('text',$('#out').value==='text');
+['out','tmodel','model','size','quality','n','format','bg'].forEach(id=>{const v=localStorage.getItem('opt_'+id);if(v)$('#'+id).value=v;$('#'+id).onchange=e=>localStorage.setItem('opt_'+id,e.target.value)});
+
+/* ---------- init ---------- */
+setOut();$('#out').addEventListener('change',setOut);
+(async()=>{
+  db=await idb();
+  sessions=await allSess();
+  // les générations restées "pending" (page fermée) sont marquées interrompues
+  sessions.forEach(s=>s.items.forEach(i=>{if(i.status==='pending'){i.status='error';i.error='Interrompu (page fermée pendant la génération).'}}));
+  if(!sessions.length){sessions.push(newSession());await saveSess(sessions[0])}
+  cur=sessions.sort((a,b)=>b.created-a.created)[0];
+  render();loadMonth();
+  try{srv=await (await fetch('/api/config')).json()}catch{}
+  if(!srv.hasKey)alert("OPENAI_API_KEY n'est pas définie sur le serveur.");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "ai-image",
+  "version": "1.0.0",
+  "description": "Interface de génération d'images (OpenAI gpt-image) avec sessions multiples",
+  "type": "module",
+  "private": true,
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "engines": { "node": ">=22" }
+}

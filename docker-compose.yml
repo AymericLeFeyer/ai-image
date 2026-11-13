@@ -1,0 +1,11 @@
+services:
+  ai-image:
+    image: ghcr.io/aymericlefeyer/ai-image:${TAG:-latest}
+    container_name: ai-image
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_ADMIN_KEY: ${OPENAI_ADMIN_KEY:-}
+    ports:
+      - '${WEB_PORT:-3220}:3000'
